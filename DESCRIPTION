@@ -1,6 +1,6 @@
 Package: Rttf2pt1
-Title: Package for ttf2pt1 program
-Version: 1.3.3
+Title: 'ttf2pt1' Program
+Version: 1.3.4
 Author: Winston Chang,
     Andrew Weeks,
     Frank M. Siegert,
@@ -17,18 +17,16 @@ Author: Winston Chang,
     Zvezdan Petkovic,
     Rigel,
     I. Lee Hetherington
-Maintainer: ORPHANED
-Description: This package contains the program ttf2pt1, for use with the
-    extrafont package. This product includes software developed by the TTF2PT1
+Maintainer: Winston Chang <winston@stdout.org>
+Description: Contains the program 'ttf2pt1', for use with the
+    'extrafont' package. This product includes software developed by the 'TTF2PT1'
     Project and its contributors.
 Depends: R (>= 2.15)
 License: file LICENSE
 URL: https://github.com/wch/Rttf2pt1
-Packaged: 2015-01-13 11:25:51 UTC; ripley
+RoxygenNote: 5.0.1
 NeedsCompilation: yes
+Packaged: 2016-05-18 20:04:39 UTC; winston
 License_is_FOSS: yes
 Repository: CRAN
-Date/Publication: 2015-01-13 12:28:07
-X-CRAN-Original-Maintainer: Winston Chang <winston@stdout.org>
-X-CRAN-Comment: Orphaned on 2014-08-15 as requested by the original
-        maintainer.
+Date/Publication: 2016-05-19 05:52:18
