@@ -1,7 +1,7 @@
-8db2c12feae9b663808adab3c6d88a36 *DESCRIPTION
+4f245dcbce7d1a5e76b9e57494c4eeb5 *DESCRIPTION
 05cbc0d424d222c922f7633daff5637c *LICENSE
 d61fe06167ad8a1c5f118b3477fde447 *NAMESPACE
-efee318b8b1110e6bd51273433b154d9 *NEWS.md
+90fe1010bfc42211cc0715bfdd9d220d *NEWS.md
 c9214b21b290a7c05d060f1c71636f32 *R/Rttf2pt1.r
 5ef97f33995785f58fdb897a5ff32c2e *README.md
 6a58b68b68566cb279f31c97e5743d13 *man/Rttf2pt1.Rd
@@ -63,7 +63,7 @@ ff382d9ff268c10ad1dcead3c88a70fd *src/ttf2pt1/encodings/russian/ibm-1251.tbl
 c803368358d22ac9292027eb11395a9d *src/ttf2pt1/encodings/russian/iso8859-5.tbl
 500a951794836e9a265b016218e25e27 *src/ttf2pt1/encodings/russian/koi8-r.tbl
 0f7d22ac2703fb7b5f6619e68fadc6d2 *src/ttf2pt1/ft.c
-d37d2df9cfc147c389d62e5566de3f9a *src/ttf2pt1/global.h
+f485e2839dd061f66f16ecd5e69038d1 *src/ttf2pt1/global.h
 36082e0a3dda07b20ebfbf35a2752465 *src/ttf2pt1/maps/CP1250.map
 bd1bf0c3dca1234b6475a249b7c0c8d5 *src/ttf2pt1/maps/CP1251.map
 c60653232b4c686bccee78abf17c37b7 *src/ttf2pt1/maps/T2A_compact.map
@@ -99,7 +99,7 @@ daa7c2375ae20915b89ee51686b23aa4 *src/ttf2pt1/scripts/unhtml
 5f358b0c57e70ab2661ca09a78d391e1 *src/ttf2pt1/t1asm.c
 f3b557e85c6ec6a8f114ac335d7a3fae *src/ttf2pt1/ttf.c
 d8a22e4f11387e843031eb058c4974ec *src/ttf2pt1/ttf.h
-7884df469692f4a42b595b1e4a43bff5 *src/ttf2pt1/ttf2pt1.c
+1513a91cf3934cec7de380662e5fff29 *src/ttf2pt1/ttf2pt1.c
 f05f04f80074a867c74da7c1353d3997 *src/ttf2pt1/version.h
 6d53900a839354c701de133d651ad78d *src/ttf2pt1/winbuild.bat
 bd6d00f40c3c43c21bc34453b9e3e57a *src/ttf2pt1/windows.h
