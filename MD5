@@ -1,9 +1,9 @@
-4f245dcbce7d1a5e76b9e57494c4eeb5 *DESCRIPTION
+3cc7f04fb3deae8700335777344a1b80 *DESCRIPTION
 05cbc0d424d222c922f7633daff5637c *LICENSE
 d61fe06167ad8a1c5f118b3477fde447 *NAMESPACE
-90fe1010bfc42211cc0715bfdd9d220d *NEWS.md
+84cdaf0d11b0645d854ef5ee96211b7a *NEWS.md
 c9214b21b290a7c05d060f1c71636f32 *R/Rttf2pt1.r
-5ef97f33995785f58fdb897a5ff32c2e *README.md
+1189de80a155858c9107006a6ebf86e1 *README.md
 6a58b68b68566cb279f31c97e5743d13 *man/Rttf2pt1.Rd
 c459cfae36a4f0dd13144c68b7b8feb6 *man/which_ttf2pt1.Rd
 8b5b0db27d4bb062e9e94f121978a6a7 *src/Makefile
@@ -81,8 +81,8 @@ e660ea3d4b25e57f7ebbef25516cd6f1 *src/ttf2pt1/other/bzscreen.c
 666becc1c6ae45143e692a528291fc96 *src/ttf2pt1/other/lst.pl
 82f7cee2333e955ec5b5b4d6b2a58ea3 *src/ttf2pt1/other/showdf
 030baec7a075efb2502a5e2806064951 *src/ttf2pt1/other/showg
-8de794c9da024b4c1892cd35cdb50a8c *src/ttf2pt1/pt1.c
-7461d313300b3460de13604fe642f842 *src/ttf2pt1/pt1.h
+71f622759c70c890bdd1155e17bfe275 *src/ttf2pt1/pt1.c
+a310b5945594828abdbba0c23d1fee25 *src/ttf2pt1/pt1.h
 7a75dddd8541aac86764067417c3aafb *src/ttf2pt1/runt1asm.c
 4b62e41bf6f84c99651f7cd068287751 *src/ttf2pt1/scripts/convert
 30577e01f55c2f113c13c182a34d9f75 *src/ttf2pt1/scripts/convert.cfg.sample
