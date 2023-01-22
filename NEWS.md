@@ -1,3 +1,8 @@
+Version 1.3.12
+--------------
+
+* Closed #10, #19: Reverted some changes from #13 which could cause `ttf2pt1` to crashe, and cause the message `No FontName. Skipping.` to appear. (#20)
+
 Version 1.3.11
 --------------
 
