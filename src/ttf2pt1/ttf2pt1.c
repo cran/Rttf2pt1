@@ -1,8 +1,8 @@
 /*
- * True Type Font to Adobe Type 1 font converter 
- * By Mark Heath <mheath@netspace.net.au> 
- * Based on ttf2pfa by Andrew Weeks <ccsaw@bath.ac.uk> 
- * With help from Frank M. Siegert <fms@this.net> 
+ * True Type Font to Adobe Type 1 font converter
+ * By Mark Heath <mheath@netspace.net.au>
+ * Based on ttf2pfa by Andrew Weeks <ccsaw@bath.ac.uk>
+ * With help from Frank M. Siegert <fms@this.net>
  *
  * see COPYRIGHT for full copyright notice
  *
@@ -38,13 +38,13 @@
  *
 ***********************************************************************
  *
- * Bug Fixes: 
+ * Bug Fixes:
 ************************************************************************
  *
- * Sun, 21 Jun 1998 Thomas Henlich <thenlich@Rcs1.urz.tu-dresden.de> 
- * 1. "width" should be "short int" because otherwise: 
- *     characters with negative widths (e.g. -4) become *very* wide (65532) 
- * 2. the number of /CharStrings is numglyphs and not numglyphs+1 
+ * Sun, 21 Jun 1998 Thomas Henlich <thenlich@Rcs1.urz.tu-dresden.de>
+ * 1. "width" should be "short int" because otherwise:
+ *     characters with negative widths (e.g. -4) become *very* wide (65532)
+ * 2. the number of /CharStrings is numglyphs and not numglyphs+1
  *
 ***********************************************************************
  *
@@ -52,7 +52,7 @@
  *
  * The resultant font file produced by this program still needs to be ran
  * through t1asm (from the t1utils archive) to produce a completely valid
- * font. 
+ * font.
  *
  */
 #include <stdio.h>
@@ -69,21 +69,95 @@
 #include <getopt.h>
 #endif
 
-#ifndef WINDOWS
-#	include <unistd.h>
-#	include <netinet/in.h>
-#	define BITBUCKET "/dev/null"
-#	include <sys/wait.h>
+/* Portable platform includes */
+#if defined(_WIN32) || defined(_WIN64) || defined(WINDOWS)
+#  define WINDOWS_FUNCTIONS /* ask to define functions - in one file only */
+   /* Winsock headers must come before windows.h */
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#  include <windows.h>
+#  define BITBUCKET "NUL"
+
+/* MSVC prior to VS2015 lacks C99 snprintf; MinGW already has it */
+#  if defined(_MSC_VER) && (_MSC_VER < 1900) && !defined(snprintf)
+#    define snprintf _snprintf
+#  endif
 #else
-#	define WINDOWS_FUNCTIONS /* ask to define functions - in one file only */
-#	include "windows.h"
-#	define BITBUCKET "NUL"
-#	define snprintf _snprintf
+#  include <unistd.h>
+#  include <sys/wait.h>
+#  include <arpa/inet.h>
+#  include <netinet/in.h>
+#  define BITBUCKET "/dev/null"
+#endif
+
+/* attribute for “maybe unused” things (GCC/Clang) */
+#ifndef RTTF2PT1_UNUSED
+# if defined(__GNUC__) || defined(__clang__)
+#  define RTTF2PT1_UNUSED __attribute__((unused))
+# else
+#  define RTTF2PT1_UNUSED
+# endif
+#endif
+#define UNUSED(x) (void)(x)
+
+/* code addition to fix [-Wimplicit-function-declaration] on Windows*/
+/* ---------- getopt portability (Windows shim) ---------- */
+#if defined(_WIN32) || defined(_WIN64) || defined(WINDOWS)
+static char *optarg = NULL;
+static int optind = 1;
+static int opterr RTTF2PT1_UNUSED = 0;  /* not used by this shim */
+static int ttf2pt1_getopt_impl(int argc, char * const argv[], const char *optstring) {
+    static int optpos = 1;
+    const char *arg;
+    char c; const char *spec;
+    optarg = NULL;
+    if (optind >= argc) return -1;
+    arg = argv[optind];
+    if (arg[0] != '-' || arg[1] == '\0') return -1;
+    c = arg[optpos++];
+    if (c == '-') { optind++; optpos = 1; return -1; }
+    spec = strchr(optstring, c);
+    if (!spec) {
+        if (arg[optpos] == '\0') { optind++; optpos = 1; }
+        return '?';
+    }
+    if (spec[1] == ':') {
+        if (arg[optpos] != '\0') {
+            optarg = (char *)&arg[optpos];
+            optind++; optpos = 1;
+        } else if (optind + 1 < argc) {
+            optarg = argv[++optind];
+            optind++; optpos = 1;
+        } else {
+            return ':'; /* missing argument */
+        }
+    } else {
+        if (arg[optpos] == '\0') { optind++; optpos = 1; }
+    }
+    return (unsigned char)c;
+}
+#endif
+
+/* code addition to fix [-Wimplicit-function-declaration] on Windows*/
+/* ---------- POSIX process API stubs on Windows ---------- */
+#if defined(_WIN32) || defined(_WIN64) || defined(WINDOWS)
+#  include <errno.h>
+#  define pipe  ttf2pt1_pipe_stub
+#  define fork  ttf2pt1_fork_stub
+#  define wait  ttf2pt1_wait_stub
+static RTTF2PT1_UNUSED int ttf2pt1_pipe_stub(int pfd[2])       { (void)pfd; errno = ENOSYS; return -1; }
+static RTTF2PT1_UNUSED int ttf2pt1_fork_stub(void)             { errno = ENOSYS; return -1; }
+static RTTF2PT1_UNUSED int ttf2pt1_wait_stub(int *ws)          { (void)ws; errno = ENOSYS; return -1; }
 #endif
 
 #include "pt1.h"
 #include "global.h"
 #include "version.h"
+
+/* MSVC shim for snprintf */
+#if defined(_MSC_VER) && !defined(snprintf)
+#  define snprintf _snprintf
+#endif
 
 /* globals */
 
@@ -386,9 +460,9 @@ static char    *adobe_StandardEncoding[256] = {
  * filesystem context. After all, the source is always available
  * and adding another language to it is easy.
  *
- * The language name is expected to be the same as the subdirectory name 
- * in the `encodings' directory (for possible future extensions). 
- * The primary use of the aliases is for guessing based on the current 
+ * The language name is expected to be the same as the subdirectory name
+ * in the `encodings' directory (for possible future extensions).
+ * The primary use of the aliases is for guessing based on the current
  * locale.
  */
 
@@ -476,7 +550,7 @@ static struct uni_language uni_lang[]= {
 		'A'
 	},
 	{ /* by Ri�ardas �epas <rch@WriteMe.Com> */
-		{ unicode_latin4 }, 
+		{ unicode_latin4 },
 		0, /* no name-based mapping */
 		"latin4",
 		"works for Baltic languages",
@@ -484,7 +558,7 @@ static struct uni_language uni_lang[]= {
 		'A'
 	},
 	{ /* by Turgut Uyar <uyar@cs.itu.edu.tr> */
-		{ unicode_latin5 }, 
+		{ unicode_latin5 },
 		0, /* no name-based mapping */
 		"latin5",
 		"for Turkish",
@@ -534,7 +608,7 @@ static struct uni_language uni_lang[]= {
 };
 
 static struct uni_language uni_lang_user = {
-	{ unicode_init_user }, 
+	{ unicode_init_user },
 	0, /* no name-based mapping */
 	0, /* no name */
 	0, /* no description */
@@ -597,13 +671,14 @@ unicode_init_user(
 			if(*arg == ',')
 				arg++;
 		}
-		if( *arg == 0 || strlen(arg) > UNI_MAX_SUFFIX_LEN-1) 
+		if( *arg == 0 || strlen(arg) > UNI_MAX_SUFFIX_LEN-1)
 			arg = NULL;
 		else {
-			sprintf(uni_suffix_buf, "-%s", arg);
+			/* sprintf(uni_suffix_buf, "-%s", arg); to silence -Wdeprecated-declarations*/
+		  (void)snprintf(uni_suffix_buf, sizeof uni_suffix_buf, "-%s", arg ? arg : "");
 			uni_font_name_suffix = uni_suffix_buf;
 		}
-	} 
+	}
 
 	/* now read in the encoding description file, if requested */
 	if ((unicode_map_file = fopen(path, "r")) == NULL) {
@@ -628,13 +703,13 @@ unicode_init_user(
 			if(arg == 0) {
 				fprintf(stderr, "**** map file '%s' requires plane name\n", path);
 				fprintf(stderr, "for example:\n");
-				fprintf(stderr, "  ttf2pt1 -L %s%c[pid=N,eid=N,]%s ...\n", 
+				fprintf(stderr, "  ttf2pt1 -L %s%c[pid=N,eid=N,]%s ...\n",
 					path, LANG_ARG_SEP, name);
 				fprintf(stderr, "to select plane '%s'\n", name);
 				exit(1);
 			}
 			if( !strcmp(arg, name) ) {
-				enabled = found = 1; 
+				enabled = found = 1;
 				curpos = 0;
 			} else {
 				enabled = 0;
@@ -646,7 +721,7 @@ unicode_init_user(
 
 		if(sscanf(buffer, "id %d %d", &pid, &eid)==2) {
 			if( !overid /* only if the user has not overriden */
-			&& (enabled || !sawplane) ) { 
+			&& (enabled || !sawplane) ) {
 				force_pid = pid; force_eid = eid;
 				forcemap = 1;
 			}
@@ -689,7 +764,7 @@ unicode_init_user(
 			p = buffer;
 			do {
 				if(curpos > 255) {
-					fprintf(stderr, "**** map file '%s' line %d: code over 255 for unicode 0x%x\n", 
+					fprintf(stderr, "**** map file '%s' line %d: code over 255 for unicode 0x%x\n",
 						path, lineno, unicode);
 					exit(1);
 				}
@@ -708,7 +783,7 @@ unicode_init_user(
 						if(ISDBG(EXTMAP)) fprintf(stderr, "=== range 0x%x to 0x%x\n", unicode, unicode2);
 						for(unicode++; unicode <= unicode2; unicode++) {
 							if(curpos > 255) {
-								fprintf(stderr, "**** map file '%s' line %d: code over 255 in unicode range ...-0x%x\n", 
+								fprintf(stderr, "**** map file '%s' line %d: code over 255 in unicode range ...-0x%x\n",
 									path, lineno, unicode2);
 								exit(1);
 							}
@@ -736,7 +811,7 @@ unicode_init_user(
 }
 
 /*
- * by Zvezdan Petkovic <z.petkovic@computer.org> 
+ * by Zvezdan Petkovic <z.petkovic@computer.org>
  */
 static void
 unicode_cyrillic(
@@ -1050,7 +1125,7 @@ unicode_latin5(
 		unicode_map[i] = latin5_unicode_map2[i-0xD0];
 }
 
-/* a way to select one 256-character plane from Unicode 
+/* a way to select one 256-character plane from Unicode
  * or other multi-byte encoding
  */
 
@@ -1096,7 +1171,8 @@ unicode_plane(
 			fprintf(stderr, "**** plane number is too large\n");
 		}
 
-		sprintf(uni_suffix_buf, "-%s", arg);
+		/* sprintf(uni_suffix_buf, "-%s", arg); to silence -Wdeprecated-declarations*/
+		(void)snprintf(uni_suffix_buf, sizeof uni_suffix_buf, "-%s", arg ? arg : "");
 		uni_font_name_suffix = uni_suffix_buf;
 	} else {
 		uni_font_name_suffix = "";
@@ -1156,7 +1232,8 @@ nametoprint(
 
 	for(i=0; ( c =* s )!=0 && i<sizeof(res)-8; s++) {
 		if(c < ' ' || c > 126) {
-			sprintf(res+i, "\\x%02X", c);
+		  /* sprintf(res+i, "\\x%02X", c); to silence -Wdeprecated-declarations*/
+		  (void)snprintf(res+i, sizeof(res)-i, "\\x%02X", (unsigned char)c);
 			i+=4;
 		} else {
 			res[i++] = c;
@@ -1193,48 +1270,52 @@ iscale(
 }
 
 /*
- * Try to force fixed width of characters
- */
+ * Try to force fixed width of characters.
+ * It seems to bring troubles when used so it is actually unused in the code.
+ * So it's better to be commented out yet to avoid raising warning during
+ * compilation.
+*/
+#if 0
+  static void
+  alignwidths(void)
+  {
+  	int             i;
+  	int             n = 0, avg, max = 0, min = 3000, sum = 0, x;
 
-static void
-alignwidths(void)
-{
-	int             i;
-	int             n = 0, avg, max = 0, min = 3000, sum = 0, x;
+  	for (i = 0; i < numglyphs; i++) {
+  		if (glyph_list[i].flags & GF_USED) {
+  			x = glyph_list[i].width;
 
-	for (i = 0; i < numglyphs; i++) {
-		if (glyph_list[i].flags & GF_USED) {
-			x = glyph_list[i].width;
+  			if (x != 0) {
+  				if (x < min)
+  					min = x;
+  				if (x > max)
+  					max = x;
 
-			if (x != 0) {
-				if (x < min)
-					min = x;
-				if (x > max)
-					max = x;
+  				sum += x;
+  				n++;
+  			}
+  		}
+  	}
 
-				sum += x;
-				n++;
-			}
-		}
-	}
+  	if (n == 0)
+  		return;
 
-	if (n == 0)
-		return;
+  	avg = sum / n;
 
-	avg = sum / n;
+  	WARNING_3 fprintf(stderr, "widths: max=%d avg=%d min=%d\n", max, avg, min);
 
-	WARNING_3 fprintf(stderr, "widths: max=%d avg=%d min=%d\n", max, avg, min);
-
-	/* if less than 5% variation from average */
-	/* force fixed width */
-	if (20 * (avg - min) < avg && 20 * (max - avg) < avg) {
-		for (i = 0; i < numglyphs; i++) {
-			if (glyph_list[i].flags & GF_USED)
-				glyph_list[i].width = avg;
-		}
-		fontm.is_fixed_pitch = 1;
-	}
-}
+  	/* if less than 5% variation from average */
+  	/* force fixed width */
+  	if (20 * (avg - min) < avg && 20 * (max - avg) < avg) {
+  		for (i = 0; i < numglyphs; i++) {
+  			if (glyph_list[i].flags & GF_USED)
+  				glyph_list[i].width = avg;
+  		}
+  		fontm.is_fixed_pitch = 1;
+  	}
+  }
+#endif
 
 static void
 convert_glyf(
@@ -1279,7 +1360,7 @@ convert_glyf(
 			assertpath(g->entries, __FILE__, __LINE__, g->name);
 		}
 
-		pathtoint(g); 
+		pathtoint(g);
 		/* all processing past this point expects integer path */
 		assertpath(g->entries, __FILE__, __LINE__, g->name);
 
@@ -1314,7 +1395,7 @@ convert_glyf(
 static void
 handle_gnames(void)
 {
-	int             i, n, found, c, type;
+	int             i, n, found, c, type = 0;
 
 	/* get the names from the font file */
 	ps_fmt_3 = cursw->glnames(glyph_list);
@@ -1323,14 +1404,15 @@ handle_gnames(void)
 	for (n = 0; n < numglyphs; n++) {
 		int             c;
 		for (i = 0; (c = glyph_list[n].name[i]) != 0; i++) {
-			if (!(isalnum(c) || c == '.' || c == '_' || c == '-') 
-			|| i==0 && isdigit(c)) { /* must not start with a digit */
+			if (!(isalnum(c) || c == '.' || c == '_' || c == '-')
+			|| (i==0 && isdigit(c))) { /* must not start with a digit */
 				WARNING_3 fprintf(stderr, "Glyph %d %s (%s), ",
-					n, isdigit(c) ? "name starts with a digit" : 
+					n, isdigit(c) ? "name starts with a digit" :
 						"has bad characters in name",
 					nametoprint(glyph_list[n].name));
 				glyph_list[n].name = malloc(16);
-				sprintf(glyph_list[n].name, "_b_%d", n);
+				/* sprintf(glyph_list[n].name, "_b_%d", n); to silence -Wdeprecated-declarations*/
+				(void)snprintf(glyph_list[n].name, 16, "_b_%d", n);
 				WARNING_3 fprintf(stderr, "changing to %s\n", glyph_list[n].name);
 				break;
 			}
@@ -1347,10 +1429,11 @@ handle_gnames(void)
 						fprintf (stderr, "****malloc failed %s line %d\n", __FILE__, __LINE__);
 						exit(255);
 					}
-					sprintf(glyph_list[n].name, "_d_%d", n);
+					/* sprintf(glyph_list[n].name, "_d_%d", n); to silence -Wdeprecated-declarations*/
+					(void)snprintf(glyph_list[n].name, 16, "_d_%d", n);
 
 					/* if the font has no names in it (what the native parser
-					 * recognises as ps_fmt_3), FreeType returns all the 
+					 * recognises as ps_fmt_3), FreeType returns all the
 					 * names as .notdef, so don't complain in this case
 					 */
 					if(strcmp(glyph_list[i].name, ".notdef")) {
@@ -1375,7 +1458,7 @@ handle_gnames(void)
 	/* do the 1st round of encoding by name */
 	if(!ps_fmt_3 && uni_lang_selected && uni_lang_selected->convbyname) {
 		for (n = 0; n < numglyphs; n++) {
-			c = uni_lang_selected->convbyname(glyph_list[n].name, 
+			c = uni_lang_selected->convbyname(glyph_list[n].name,
 				uni_lang_arg, UNICONV_BYNAME_BEFORE);
 			if(c>=0 && c<ENCTABSZ && encoding[c] == -1)
 				encoding[c] = n;
@@ -1415,7 +1498,7 @@ handle_gnames(void)
 		for (i = 0; i < numglyphs; i++) {
 			glyph_list[i].name = 0;
 		}
-		if(type == 0) { 
+		if(type == 0) {
 			/* 8-bit - give 8859/1 names to the first 256 glyphs */
 			for (i = 0; i < 256; i++) { /* here 256, not ENCTABSZ */
 				if (encoding[i] > 0) {
@@ -1438,7 +1521,8 @@ handle_gnames(void)
 					fprintf (stderr, "****malloc failed %s line %d\n", __FILE__, __LINE__);
 					exit(255);
 				}
-				sprintf(glyph_list[i].name, "_d_%d", i);
+				/* sprintf(glyph_list[i].name, "_d_%d", i); to silence -Wdeprecated-declarations*/
+				(void)snprintf(glyph_list[i].name, 16, "_d_%d", i);
 			}
 		}
 	}
@@ -1446,7 +1530,7 @@ handle_gnames(void)
 	/* do the 2nd round of encoding by name */
 	if(uni_lang_selected && uni_lang_selected->convbyname) {
 		for (n = 0; n < numglyphs; n++) {
-			c = uni_lang_selected->convbyname(glyph_list[n].name, 
+			c = uni_lang_selected->convbyname(glyph_list[n].name,
 				uni_lang_arg, UNICONV_BYNAME_AFTER);
 			if(c>=0 && c<ENCTABSZ && encoding[c] == -1)
 				encoding[c] = n;
@@ -1456,7 +1540,7 @@ handle_gnames(void)
 
 	for (i = 0; i < ENCTABSZ; i++)
 		if(encoding[i] == -1) {
-			/* check whether this character might be a duplicate 
+			/* check whether this character might be a duplicate
 			 * (in which case it would be missed by unicode_rev_lookup())
 			 */
 			c = unicode_map[i];
@@ -1485,7 +1569,7 @@ handle_gnames(void)
  		    glyph_list[encoding[i]].name = glyph_rename[i];
  		}
  	}
- 	
+
 }
 
 /* duplicate a string with counter to a 0-terminated string,
@@ -1567,7 +1651,7 @@ usage(void)
 	fplop(" --encode\n");
 	fputs("  -e - produce a fully encoded .pfa file\n", stderr);
 	fplop(" --force-unicode\n");
-	fputs("  -F - force use of Unicode encoding even if other MS encoding detected\n", stderr); 
+	fputs("  -F - force use of Unicode encoding even if other MS encoding detected\n", stderr);
 	fplop(" --generate suboptions\n");
 	fputs("  -G suboptions - control the file generation, run ttf2pt1 -G? for help\n", stderr);
 	fplop(" --language language\n");
@@ -1626,7 +1710,7 @@ init_subo_tbl(
 		*(tbl[i].valp) = tbl[i].dflt;
 	}
 }
-  
+
 /* print the default value of the suboptions */
 static void
 print_subo_dflt(
@@ -1643,7 +1727,7 @@ print_subo_dflt(
 			putc(tbl[i].disbl, f);
 	}
 }
-  
+
 /* print the usage message for the suboptions */
 static void
 print_subo_usage(
@@ -1680,12 +1764,12 @@ set_subo(
 		} else if(subopt == tbl[i].enbl) {
 			*(tbl[i].valp) = 1;
 			return &tbl[i];
-		} 
+		}
 	}
 	return NULL;
 }
 
-  
+
 int
 main(
      int argc,
@@ -1702,8 +1786,15 @@ main(
 	int             oc;
 	int             subid;
 	char           *cmdline;
-#ifdef _GNU_SOURCE
-#	define ttf2pt1_getopt(a, b, c, d, e)	getopt_long(a, b, c, d, e)
+
+/* #ifdef _GNU_SOURCE to fix [-Wimplicit-function-declaration] on Windows*/
+	#if defined(_WIN32) || defined(_WIN64) || defined(WINDOWS)
+    /* Windows build doesn't use ws; keep compilers happy */
+    UNUSED(ws);
+	  #	define ttf2pt1_getopt(a, b, c, d, e)	ttf2pt1_getopt_impl((a),(b),(c))
+	#elif defined(_GNU_SOURCE)
+
+  #	define ttf2pt1_getopt(a, b, c, d, e)	getopt_long(a, b, c, d, e)
 	static struct option longopts[] = {
 		{ "afm", 0, NULL, 'A' },
 		{ "all-glyphs", 0, NULL, 'a' },
@@ -1754,7 +1845,7 @@ main(
 	init_subo_tbl(opotbl); /* initialize sub-options of -O */
 	init_subo_tbl(fgotbl); /* initialize sub-options of -G */
 
-	/* save the command line for the record 
+	/* save the command line for the record
 	 * (we don't bother about escaping the shell special characters)
 	 */
 
@@ -1924,7 +2015,7 @@ main(
 				fprintf(stderr, "**** UniqueID may be specified only once ****\n");
 				exit(1);
 			}
-			wantuid = 1; 
+			wantuid = 1;
 			if(optarg[0]=='A' && optarg[1]==0)
 				strUID=0; /* will be generated automatically */
 			else {
@@ -1968,7 +2059,7 @@ main(
 				  fprintf(stderr, "**** unknown front-end parser '%s' ****\n", optarg);
 				fputs("the following front-ends are supported now:\n", stderr);
 				for(i=0; frontswtab[i] != NULL; i++) {
-					fprintf(stderr,"  %s (%s)\n   file suffixes: ", 
+					fprintf(stderr,"  %s (%s)\n   file suffixes: ",
 						frontswtab[i]->name,
 						frontswtab[i]->descr ? frontswtab[i]->descr : "no description"
 					);
@@ -2006,7 +2097,7 @@ main(
 					fprintf(stderr, "**** unknown language '%s' ****\n", optarg);
 				fputs("       the following languages are supported now:\n", stderr);
 				for(i=0; i < sizeof uni_lang/(sizeof uni_lang[0]); i++)
-					fprintf(stderr,"         %s (%s)\n", 
+					fprintf(stderr,"         %s (%s)\n",
 						uni_lang[i].name,
 						uni_lang[i].descr ? uni_lang[i].descr : "no description"
 					);
@@ -2093,7 +2184,7 @@ main(
 
 		if(cursw==0) {
 			cursw = frontswtab[0];
-			WARNING_1 fprintf(stderr, "Can't detect front-end parser, using '%s' by default\n", 
+			WARNING_1 fprintf(stderr, "Can't detect front-end parser, using '%s' by default\n",
 				cursw->name);
 			WARNING_1 fprintf(stderr, " (use ttf2pt1 -p? to get the full list of available front-ends)\n");
 		}
@@ -2234,7 +2325,7 @@ main(
 
 	cursw->glmetrics(glyph_list);
 	cursw->fnmetrics(&fontm);
- 
+
 	original_scale_factor = 1000.0 / (double) fontm.units_per_em;
 
 	if(transform == 0)
@@ -2266,7 +2357,7 @@ main(
 		}
 
 		/* also always include .notdef */
-		for (i = 0; i < numglyphs; i++) 
+		for (i = 0; i < numglyphs; i++)
 			if(!strcmp(glyph_list[i].name, ".notdef")) {
 				glyph_list[i].flags |= GF_USED;
 				break;
@@ -2323,7 +2414,7 @@ main(
 	** while other styles of the same font as proportional.
 	** So it's better to be commented out yet.
 	*/
-	if (tryfixed) 
+	if (tryfixed)
 		alignwidths();
 #endif
 
@@ -2432,7 +2523,7 @@ main(
 	/* determine number of elements for metrics table */
 	nmetrics = 256;
  	for (i = 0; i < numglyphs; i++) {
-		if( glyph_list[i].flags & GF_USED 
+		if( glyph_list[i].flags & GF_USED
 		&& glyph_list[i].char_no == -1 ) {
 			nmetrics++;
 		}
@@ -2580,7 +2671,7 @@ main(
 #ifndef WINDOWS
 	while (wait(&ws) > 0) {
 	}
-#else 
+#else
 	if (encode && pfa_file != null_file) {
 		extern FILE    *ifp, *ofp;	/* from t1asm.c */
 
@@ -2605,7 +2696,7 @@ main(
 		runt1asm(pfbflag);
 
 		WARNING_2 fprintf(stderr, "Removing file %s\n", filename);
-		if(unlink(filename) < 0) 
+		if(unlink(filename) < 0)
 			WARNING_1 fprintf(stderr, "Unable to remove file %s\n", filename);
 	}
 #endif /* WINDOWS */

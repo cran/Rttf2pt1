@@ -1,8 +1,8 @@
 /*
- * True Type Font to Adobe Type 1 font converter 
- * By Mark Heath <mheath@netspace.net.au> 
- * Based on ttf2pfa by Andrew Weeks <ccsaw@bath.ac.uk> 
- * With help from Frank M. Siegert <fms@this.net> 
+ * True Type Font to Adobe Type 1 font converter
+ * By Mark Heath <mheath@netspace.net.au>
+ * Based on ttf2pfa by Andrew Weeks <ccsaw@bath.ac.uk>
+ * With help from Frank M. Siegert <fms@this.net>
  *
  * see COPYRIGHT
  *
@@ -17,12 +17,39 @@
 #include <ctype.h>
 #include <math.h>
 
-#ifndef WINDOWS
-#	include <unistd.h>
-#	include <netinet/in.h>
-#else
-#	include "windows.h"
+/* MSVC shim for snprintf */
+#if defined(_MSC_VER) && !defined(snprintf)
+#  define snprintf _snprintf
 #endif
+
+
+
+
+/* Portable platform includes */
+#if defined(_WIN32) || defined(_WIN64) || defined(WINDOWS)
+#  define WINDOWS_FUNCTIONS /* ask to define functions - in one file only */
+/* Winsock headers must come before windows.h */
+/* On Windows, prevent <windows.h> from dragging in GDI types (FIXED) */
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif
+# ifndef NOGDI
+#  define NOGDI
+# endif
+# include <winsock2.h>
+# include <ws2tcpip.h>
+# include <windows.h>
+/* MSVC prior to VS2015 lacks C99 snprintf; MinGW already has it */
+#  if defined(_MSC_VER) && (_MSC_VER < 1900) && !defined(snprintf)
+#    define snprintf _snprintf
+#  endif
+#else
+#  include <unistd.h>
+#  include <sys/wait.h>
+#  include <arpa/inet.h>
+#  include <netinet/in.h>
+#endif
+
 
 #include "ttf.h"
 #include "pt1.h"
@@ -163,9 +190,9 @@ static char    *mac_glyph_names[258] = {
 };
 
 /* other prototypes */
-static void draw_composite_glyf( GLYPH *g, GLYPH *glyph_list, int glyphno, 
+static void draw_composite_glyf( GLYPH *g, GLYPH *glyph_list, int glyphno,
 	double *matrix, int level);
-static void draw_simple_glyf( GLYPH *g, GLYPH *glyph_list, int glyphno, 
+static void draw_simple_glyf( GLYPH *g, GLYPH *glyph_list, int glyphno,
 	double *matrix);
 static double f2dot14( short x);
 
@@ -205,7 +232,7 @@ handle_name(void)
 	name_record = &(name_table->nameRecords);
 
 	for (j = 0; j < 8; j++) {
-		name_fields[j] = ""; 
+		name_fields[j] = "";
 	}
 
 	for (j = 0; j < ntohs(name_table->numberOfNameRecords); j++) {
@@ -327,7 +354,7 @@ draw_composite_glyf(
 
 	/* complex case */
 	if(level >= MAX_COMPOSITE_LEVEL) {
-		WARNING_1 fprintf(stderr, 
+		WARNING_1 fprintf(stderr,
 			"*** Glyph %s: stopped (possibly infinite) recursion at depth %d\n",
 			g->name, level);
 		return;
@@ -412,7 +439,7 @@ draw_composite_glyf(
 			matrix[4] *= arg1;
 			matrix[5] *= arg2;
 		} else {
-			WARNING_1 fprintf(stderr, 
+			WARNING_1 fprintf(stderr,
 				"*** Glyph %s: reusing scale from another glyph is unsupported\n",
 				g->name);
 			/*
@@ -768,6 +795,11 @@ draw_simple_glyf(
 			}
 		}
 	}
+
+	/* mark result intentionally ignored to silence -Wunused-but-set-variable */
+	(void)xlast;
+	(void)ylast;
+
 }
 
 static double
@@ -956,7 +988,7 @@ glnames(
                 n_ps_names = 0;
                 name_index = &(post_table->glyphNameIndex);
 
-                /* This checks the integrity of the post table */       
+                /* This checks the integrity of the post table */
                 for (i=0; i<npost; i++) {
                     n = ntohs(name_index[i]);
                     if (n > n_ps_names + 257) {
@@ -971,19 +1003,19 @@ glnames(
                         /* previously the program wrote nulls into the table. If the table
                            was corrupt, this could put zeroes anywhere, leading to obscure bugs,
                            so now I malloc space for the names. Yes it is much less efficient */
-                           
+
                         if ((p = malloc(len+1)) == NULL) {
                             fprintf (stderr, "****malloc failed %s line %d\n", __FILE__, __LINE__);
                             exit(255);
                         }
-                        
+
                         ps_name_ptr[i] = p;
                         strncpy(p, ptr+1, len);
                         p[len] = '\0';
                         i ++;
                         ptr += len + 1;
                 }
-        
+
                 if (i != n_ps_names)
                 {
                     WARNING_2 fprintf (stderr, "** Postscript Name mismatch %d != %d **\n",
@@ -1004,7 +1036,8 @@ glnames(
                                 glyph_list[i].name = ps_name_ptr[n - 258];
                         } else {
                                 glyph_list[i].name = malloc(16);
-                                sprintf(glyph_list[i].name, "_g_%d", i);
+                                /* sprintf(glyph_list[i].name, "_g_%d", i); to silence -Wdeprecated-declarations*/
+                                (void)snprintf(glyph_list[i].name, 16, "_g_%d", i);
                                 WARNING_2 fprintf(stderr,
                                         "Glyph No. %d has no postscript name, becomes %s\n",
                                         i, glyph_list[i].name);
@@ -1018,7 +1051,8 @@ glnames(
                             fprintf (stderr, "****malloc failed %s line %d\n", __FILE__, __LINE__);
                             exit(255);
                         }
-                        sprintf(glyph_list[i].name, "_g_%d", i);
+                        /* sprintf(glyph_list[i].name, "_g_%d", i); to silence -Wdeprecated-declarations*/
+                        (void)snprintf(glyph_list[i].name, 16, "_g_%d", i);
                         WARNING_2 fprintf(stderr,
                                 "Glyph No. %d has no postscript name, becomes %s\n",
                                 i, glyph_list[i].name);
@@ -1208,7 +1242,7 @@ handle_mac_encoding(
 }
 
 /*
- * Get the original encoding of the font. 
+ * Get the original encoding of the font.
  * Returns 1 for if the original encoding is Unicode, 2 if the
  * original encoding is other 16-bit, 0 if 8-bit.
  */
@@ -1252,7 +1286,7 @@ glenc(
 		if(force_pid != -1) {
 			if(force_pid != platform || encoding_id != force_eid)
 				continue;
-			WARNING_1 fprintf(stderr, "Found Encoding PID=%d/EID=%d\n", 
+			WARNING_1 fprintf(stderr, "Found Encoding PID=%d/EID=%d\n",
 				force_pid, force_eid);
 			enc_type = 1;
 		} else {
@@ -1323,7 +1357,7 @@ glenc(
 			if (format != 4)
 				continue;
 
-			WARNING_1 fprintf(stderr, "Found a last ditch encoding PID=%d/EID=%d, treating it as Unicode.\n", 
+			WARNING_1 fprintf(stderr, "Found a last ditch encoding PID=%d/EID=%d, treating it as Unicode.\n",
 				platform, encoding_id);
 			found = 1;
 			enc_type = 1;
@@ -1337,13 +1371,13 @@ glenc(
 			enc_found_ms = 1;
 
 			handle_ms_encoding(glyph_list, encoding, unimap);
-		
+
 		}
 	}
 
 	if (!found) {
 		if(force_pid != -1) {
-			fprintf(stderr, "*** TTF encoding table PID=%d/EID=%d not found\n", 
+			fprintf(stderr, "*** TTF encoding table PID=%d/EID=%d not found\n",
 				force_pid, force_eid);
 		}
 		fprintf(stderr, "**** No Recognised Encoding Table ****\n");
@@ -1370,7 +1404,7 @@ glenc(
 /*
  * Get the font metrics
  */
-static void 
+static void
 fnmetrics(
 	struct font_metrics *fm
 )
@@ -1410,8 +1444,8 @@ fnmetrics(
 		len = strlen(str);
 		for(j=0; j<len; j++) {
 			if( (str[j]=='B'
-				|| str[j]=='b' 
-					&& ( j==0 || !isalpha(str[j-1]) )
+				|| (str[j]=='b'
+					&& ( j==0 || !isalpha(str[j-1]) ))
 				)
 			&& !strncmp("old",&str[j+1],3)
 			&& (j+4 >= len || !islower(str[j+4]))
@@ -1480,7 +1514,7 @@ kerning(
 			kern_entry = (TTF_KERN_ENTRY *) (ptr + sizeof(TTF_KERN_SUB));
 			for (j = 0; j < npairs; j++) {
 				if( kern_entry->value != 0)
-					addkernpair(ntohs(kern_entry->left), 
+					addkernpair(ntohs(kern_entry->left),
 						ntohs(kern_entry->right), (short)ntohs(kern_entry->value));
 				kern_entry++;
 			}

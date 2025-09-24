@@ -32,8 +32,20 @@
  *
  */
 
+#ifndef UNUSED
+#  define UNUSED(x) (void)(x)
+#endif
+
+#ifndef RTTF2PT1_UNUSED
+# if defined(__GNUC__) || defined(__clang__)
+#  define RTTF2PT1_UNUSED __attribute__((unused))
+# else
+#  define RTTF2PT1_UNUSED
+# endif
+#endif
+
 #ifndef lint
-static char copyright[] =
+static RTTF2PT1_UNUSED char copyright[] =
   "@(#) Copyright (c) 1992 by I. Lee Hetherington, all rights reserved.";
 #ifdef _MSDOS
 static char portnotice[] =
@@ -53,6 +65,18 @@ static char portnotice[] =
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+
+/* MSVC/Windows printf size_t format helper */
+#if defined(_MSC_VER) && !defined(__clang__)
+#  define SIZET_FMT "%Iu"
+#else
+#  define SIZET_FMT "%zu"
+#endif
+
+/* MSVC shim for snprintf */
+#if defined(_MSC_VER) && !defined(snprintf)
+#  define snprintf _snprintf
+#endif
 
 #ifdef WINDOWS
 #	ifdef STANDALONE
@@ -368,13 +392,15 @@ static void charstring_start(void)
 
 static void charstring_byte(int v)
 {
-  byte b = (byte) (v & 0xff);
+  byte b = (byte)(v & 0xff);
 
-  if (charstring_bp - charstring_buf > sizeof(charstring_buf)) {
-    fprintf(stderr, "error: charstring_buf full (%zu bytes)\n",
-            sizeof(charstring_buf));
+  /* how many bytes are already in the buffer */
+  size_t used = (size_t)(charstring_bp - charstring_buf);
+  if (used >= sizeof(charstring_buf)) {
+    fprintf(stderr, "error: charstring_buf full (" SIZET_FMT " bytes)\n", used);
     exit(1);
   }
+
   *charstring_bp++ = cencrypt(b);
 }
 
@@ -385,10 +411,15 @@ static void charstring_end(void)
 {
   byte *bp;
 
-  sprintf(line, "%ld ", charstring_bp - charstring_buf);
+  /* sprintf(line, "%ld ", charstring_bp - charstring_buf); to silence -Wdeprecated-declarations*/
+  (void)snprintf(line, sizeof line, "%ld ",
+                 (long)(charstring_bp - charstring_buf));
   eexec_string(line);
-  sprintf(line, "%s ", cs_start);
+
+  /* sprintf(line, "%s ", cs_start); to silence -Wdeprecated-declarations*/
+  (void)snprintf(line, sizeof line, "%s ", cs_start[0] ? cs_start : "");
   eexec_string(line);
+
   for (bp = charstring_buf; bp < charstring_bp; bp++)
     eexec_byte(*bp);
 }
@@ -460,7 +491,7 @@ static void parse_charstring(void)
   charstring_end();
 }
 
-static void usage(void)
+static RTTF2PT1_UNUSED void usage(void)
 {
   fprintf(stderr,
           "usage: t1asm [-b] [-l block-length] [input [output]]\n");
@@ -473,7 +504,7 @@ static void usage(void)
   exit(1);
 }
 
-static void print_banner(void)
+static RTTF2PT1_UNUSED void print_banner(void)
 {
   static char rcs_revision[] = ""; /* removed RCS */
   static char revision[20];
