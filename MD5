@@ -1,9 +1,10 @@
-23cb059eee3aa3bba2e1955169d8f80c *DESCRIPTION
+8c58d9cf80f227745e72af8228f1e403 *DESCRIPTION
 05cbc0d424d222c922f7633daff5637c *LICENSE
 d61fe06167ad8a1c5f118b3477fde447 *NAMESPACE
-048f298b790ce14f58b3ff8efa63b8c8 *NEWS.md
+b9744bd5f6eb4fedfe47f462ef84abaa *NEWS.md
 577629990a84cad14bb4542159699249 *R/Rttf2pt1.r
-7ecb4def5c1f64d0207ee70197cd0fa1 *README.md
+d27fd61940cc9f4bfd812d517b8c9baa *README.md
+45b5319a4703f7999141931383214e4c *inst/CITATION
 c80f6b37dd902359b6d1a87aadb3cdc1 *man/Rttf2pt1-package.Rd
 c459cfae36a4f0dd13144c68b7b8feb6 *man/which_ttf2pt1.Rd
 8b5b0db27d4bb062e9e94f121978a6a7 *src/Makefile
@@ -96,7 +97,7 @@ f0536030a1efb028c5baedaafdda0ceb *src/ttf2pt1/scripts/html2man
 db193d99eef7c8bf80ad8b9f02f5de41 *src/ttf2pt1/scripts/trans
 daa7c2375ae20915b89ee51686b23aa4 *src/ttf2pt1/scripts/unhtml
 71d99c24a2aa6b4d0882c8b8e46d2354 *src/ttf2pt1/scripts/x2gs
-cf38387e4d7a22c8a1d70a3b5b98fb6b *src/ttf2pt1/t1asm.c
+460456575d7b90425103ef269b8fc21f *src/ttf2pt1/t1asm.c
 68ac41b55b7d6818d73145a7a28ed626 *src/ttf2pt1/ttf.c
 3f08bbe26b9828a353da36420c890695 *src/ttf2pt1/ttf.h
 5456f266a868a7ccb1cd30c3a5d0a9b4 *src/ttf2pt1/ttf2pt1.c
